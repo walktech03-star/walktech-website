@@ -1,6 +1,6 @@
-import { Navbar } from "@/src/components/navbar";
-import { Footer } from "@/src/components/footer";
-import { EngineeringServicesList } from "@/src/components/services/services-list";
+import { Navbar } from "@/components/navbar";
+import { Footer } from "@/components/footer";
+import { EngineeringServicesList } from "@/components/services/services-list";
 
 export default function ServicesPage() {
   return (

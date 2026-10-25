@@ -1,7 +1,7 @@
-import { Navbar } from "@/src/components/navbar";
-import { Footer } from "@/src/components/footer";
-import { HeroSection } from "@/src/components/pages/hero-section";
-import { ServicesOverview } from "@/src/components/pages/services-overview";
+import { Navbar } from "@/components/navbar";
+import { Footer } from "@/components/footer";
+import { HeroSection } from "@/components/pages/hero-section";
+import { ServicesOverview } from "@/components/pages/services-overview";
 
 export default function HomePage() {
   return (

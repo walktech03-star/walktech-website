@@ -1,0 +1,216 @@
+"use client";
+
+import { createClientSupabase } from "@/libsupabase";
+import { useCallback, useEffect, useRef, useState, ReactElement } from "react";
+
+export default function AdminDashboard() {
+  const [authenticated, setAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [productsCount, setProductsCount] = useState<number>(0);
+  const [projectsCount, setProjectsCount] = useState<number>(0);
+  const [coursesCount, setCoursesCount] = useState<number>(0);
+  const [inquiriesCount, setInquiriesCount] = useState<number>(0);
+  const [statsError, setStatsError] = useState<string | null>(null);
+
+  const cancelledRef = useRef(false);
+
+  const fetchStats = useCallback(async () => {
+    try {
+      setStatsError(null);
+      const supabase = createClientSupabase(null as never);
+      const { count: p, error: pError } = await supabase
+        .from("products")
+        .select("*", { count: "exact", head: true })
+        .eq("is_published", true);
+      const { count: pr, error: prError } = await supabase
+        .from("project_ideas")
+        .select("*", { count: "exact", head: true });
+      const { count: c, error: cError } = await supabase
+        .from("courses")
+        .select("*", { count: "exact", head: true })
+        .eq("is_published", true);
+      const { count: i, error: iError } = await supabase
+        .from("inquiries")
+        .select("*", { count: "exact", head: true });
+
+      if (pError || prError || cError || iError) {
+        throw new Error(
+          pError?.message || prError?.message || cError?.message || iError?.message
+        );
+      }
+
+      if (!cancelledRef.current) {
+        setProductsCount(p || 0);
+        setProjectsCount(pr || 0);
+        setCoursesCount(c || 0);
+        setInquiriesCount(i || 0);
+      }
+    } catch (err: any) {
+      if (!cancelledRef.current) {
+        setStatsError(err.message || "Failed to load statistics");
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    cancelledRef.current = false;
+
+    const checkAuth = async () => {
+      try {
+        const supabase = createClientSupabase(null as never);
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !session?.user) {
+          window.location.href = "/admin/login";
+          return;
+        }
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single();
+        if (profileError || !profile || profile.role !== "admin") {
+          window.location.href = "/";
+          return;
+        }
+        if (!cancelledRef.current) {
+          setAuthenticated(true);
+          await fetchStats();
+        }
+      } catch {
+        if (!cancelledRef.current) {
+          window.location.href = "/admin/login";
+        }
+      } finally {
+        if (!cancelledRef.current) {
+          setLoading(false);
+        }
+      }
+    };
+
+    checkAuth();
+
+    return () => {
+      cancelledRef.current = true;
+    };
+  }, [fetchStats]);
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-navy flex items-center justify-center p-8">
+        <div className="text-white">
+          <h1 className="text-3xl font-bold">Walk Tech Admin</h1>
+          <p className="mt-2">Loading...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!authenticated) return null;
+
+  const StatCard = ({ title, icon, count }: { title: string; icon: React.ReactElement; count: number }) => (
+    <div className="bg-white rounded-2xl shadow-sm p-6">
+      <div className="flex items-start gap-3">
+        {icon}
+        <div>
+          <p className="text-navy-medium mb-1">{title}</p>
+          <p className="text-3xl font-bold text-navy">{count}</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const ProductsIcon = (
+    <div className="w-12 h-12 rounded-md bg-navy-light flex items-center justify-center">
+      <svg className="w-6 h-6 text-navy" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M16 8v8h8v-2h-4l-4-4L16 8zm-4 4l-4 4V16l4-4zm12-6v2h2v-2h-2zm-6 6v2H8v-2h2zm-4-12l2-2L4 5c-1.1 0-2 .9-2 2v10c0 1.1.89 2 2 2l2-2l2-2l2-2l-2-2L4 7c-1.1 0-2 .9-2 2v2h14V7c0-1.1-.9-2-2-2z" />
+      </svg>
+    </div>
+  );
+
+  const ProjectsIcon = (
+    <div className="w-12 h-12 rounded-md bg-navy-light flex items-center justify-center">
+      <svg className="w-6 h-6 text-navy" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M20 2H4c-1.1 0-1.99 .9-1.99 2L2 18c0 1.1 .9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
+      </svg>
+    </div>
+  );
+
+  const CoursesIcon = (
+    <div className="w-12 h-12 rounded-md bg-navy-light flex items-center justify-center">
+      <svg className="w-6 h-6 text-navy" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M16 8v8h8v-2h-4l-4-4L16 8zm-4 4l-4 4V16l4-4zm12-6v2h2v-2h-2zm-6 6v2H8v-2h2zm-4-12l2-2L4 5c-1.1 0-2 .9-2 2v10c0 1.1.89 2 2 2l2-2l2-2l2-2l-2-2L4 7c-1.1 0-2 .9-2 2v2h14V7c0-1.1-.9-2-2-2z" />
+      </svg>
+    </div>
+  );
+
+  const InquiriesIcon = (
+    <div className="w-12 h-12 rounded-md bg-navy-light flex items-center justify-center">
+      <svg className="w-6 h-6 text-navy" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2L2 7l10 5 10-5-10-5z" />
+      </svg>
+    </div>
+  );
+
+  return (
+    <main className="min-h-screen bg-navy-light">
+      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-navy">Admin Dashboard</h1>
+            <p className="text-navy-medium">Manage your platform content</p>
+          </div>
+          {statsError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3 text-red-800 text-sm">
+              <svg className="w-5 h-5 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
+              <div>
+                <p className="font-medium">Failed to load statistics</p>
+                <p className="mt-1">{statsError}</p>
+                <button
+                  onClick={() => fetchStats()}
+                  className="mt-2 underline text-red-600 hover:text-red-800"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <StatCard title="Products" icon={ProductsIcon} count={productsCount} />
+          <StatCard title="Project Ideas" icon={ProjectsIcon} count={projectsCount} />
+          <StatCard title="Courses" icon={CoursesIcon} count={coursesCount} />
+          <StatCard title="Inquiries" icon={InquiriesIcon} count={inquiriesCount} />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="bg-navy-800 rounded-2xl p-6">
+            <h3 className="text-white text-xl font-medium mb-4">Manage Content</h3>
+            <p className="text-navy-light/60 text-sm mb-6">
+              Manage products, projects, courses, services, and inquiries
+            </p>
+            <div className="space-y-2">
+              <a href="/admin/products" className="block p-3 rounded-xl bg-navy/50 text-navy-light hover:bg-navy hover:text-white transition-colors text-sm">Products</a>
+              <a href="/admin/projects" className="block p-3 rounded-xl bg-navy/50 text-navy-light hover:bg-navy hover:text-white transition-colors text-sm">Project Ideas</a>
+              <a href="/admin/courses" className="block p-3 rounded-xl bg-navy/50 text-navy-light hover:bg-navy hover:text-white transition-colors text-sm">Courses</a>
+              <a href="/admin/services" className="block p-3 rounded-xl bg-navy/50 text-navy-light hover:bg-navy hover:text-white transition-colors text-sm">Engineering Services</a>
+              <a href="/admin/inquiries" className="block p-3 rounded-xl bg-navy/50 text-navy-light hover:bg-navy hover:text-white transition-colors text-sm">Customer Inquiries</a>
+            </div>
+          </div>
+          <div className="bg-navy-800 rounded-2xl p-6 h-96">
+            <h3 className="text-white text-xl font-medium mb-4">Quick Actions</h3>
+            <p className="text-navy-light/60 text-sm mb-6">Create new content</p>
+            <div className="space-y-2">
+              <button className="w-full p-3 rounded-xl bg-white text-navy hover:bg-navy-light transition-colors text-sm font-medium">Add New Product</button>
+              <button className="w-full p-3 rounded-xl bg-white text-navy hover:bg-navy-light transition-colors text-sm font-medium">Add New Project</button>
+              <button className="w-full p-3 rounded-xl bg-white text-navy hover:bg-navy-light transition-colors text-sm font-medium">Add New Course</button>
+              <button className="w-full p-3 rounded-xl bg-white text-navy hover:bg-navy-light transition-colors text-sm font-medium">Add New Service</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}

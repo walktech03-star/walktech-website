@@ -1,4 +1,5 @@
-import { withAuth } from "@supabase/ssr";
+import { createClientSupabase } from "@/libsupabase";
+import { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 export const config = {
@@ -7,32 +8,54 @@ export const config = {
   ],
 };
 
-export function middleware(request: NextRequest) {
-  const response = NextResponse.next();
-
+export async function middleware(request: NextRequest) {
   // Create Supabase client
   const supabase = createClientSupabase(request);
+
+  // Refresh session/cookies
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser();
+
+  // Handle authentication errors gracefully
+  if (authError) {
+    console.error("Supabase auth error in middleware:", authError);
+  }
 
   // Protect admin routes
   if (request.nextUrl.pathname.startsWith("/admin")) {
-    const { data: { role } } = supabase
+    // If no user is authenticated, redirect to home
+    if (!user) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/";
+      return NextResponse.redirect(url);
+    }
+
+    // If user is authenticated, check their role
+    const {
+      data: profileData,
+      error: profileError,
+    } = await supabase
       .from("profiles")
       .select("role")
-      .eq("id", user?.id)
+      .eq("id", user.id)
       .single();
 
-    if (role !== "admin") {
+    const profile = profileData?.role
+      ? { role: profileData.role }
+      : null;
+
+// If profile query fails or user doesn't have admin role, redirect
+    if (profileError || !profile || profile?.role !== "admin") {
       const url = request.nextUrl.clone();
       url.pathname = "/";
       return NextResponse.redirect(url);
     }
   }
 
-  // Attach user to response for use in templates
-  // (handled by createClientSupabase in templates)
+  // Attach user information to response for use in templates
+  // The createClientSupabase hook handles user state in client components
 
-  return response;
+  return NextResponse.next();
 }

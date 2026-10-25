@@ -1,6 +1,6 @@
-import { Navbar } from "@/src/components/navbar";
-import { Footer } from "@/src/components/footer";
-import { ProjectsList } from "@/src/components/projects/projects-list";
+import { Navbar } from "@/components/navbar";
+import { Footer } from "@/components/footer";
+import { ProjectsList } from "@/components/projects/projects-list";
 
 export default function ProjectsPage() {
   return (

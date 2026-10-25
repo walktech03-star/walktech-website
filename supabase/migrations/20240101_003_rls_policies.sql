@@ -112,9 +112,12 @@ CREATE POLICY "Public can create inquiries" ON inquiries
   FOR INSERT WITH CHECK (true);
 
 CREATE POLICY "Users can view own inquiries" ON inquiries
-  FOR SELECT USING (email = auth.role() OR phone IN (
-    SELECT phone FROM profiles WHERE id = auth.uid()
-  ));
+  FOR SELECT USING (
+    email = (SELECT email FROM profiles WHERE id = auth.uid()) OR
+    phone IN (
+      SELECT phone FROM profiles WHERE id = auth.uid()
+    )
+);
 
 CREATE POLICY "Admins can manage inquiries" ON inquiries
   FOR ALL USING (role = 'admin');
